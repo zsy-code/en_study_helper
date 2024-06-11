@@ -90,7 +90,7 @@ sd_payload = {
 			"args": []
 		},
 		"Additional networks for generating": {
-			"args": [True, False, "LoRA", "J_cartoon(fe4e7e2e4eff)", 1, 1, "LoRA", "None", 1, 1, "LoRA", "None", 1, 1, "LoRA", "None", 1, 1, "LoRA", "None", 1, 1, None, "Refresh models"]
+			"args": [True, False, "LoRA", "sdxl_lora_80scartoon(a4e287eb6883)", 1, 1, "LoRA", "None", 1, 1, "LoRA", "None", 1, 1, "LoRA", "None", 1, 1, "LoRA", "None", 1, 1, None, "Refresh models"]
 		},
 		"Anthony's QR Toolkit": {
 			"args": []

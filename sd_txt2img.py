@@ -10,6 +10,7 @@ import os
 from utils import decode_and_save_base64, timestamp
 
 webui_server_url = 'http://127.0.0.1:7861'
+webui_server_url = 'http://region-45.autodl.pro:17319'
 
 # make some dirs to save generated images/zips
 out_dir = 'images_out'
@@ -62,4 +63,14 @@ if __name__ == '__main__':
             'sd_model_checkpoint': "sd_xl_base_1.0",  # this can use to switch sd model
         },
     }
-    call_txt2img_api(**payload)
+    from config import sd_payload
+
+    # sd_payload["override_settings"]["sd_model_checkpoint"] = "v1-5-pruned-emaonly.safetensors [6ce0161689]"
+    # sd_payload["alwayson_scripts"]["Additional networks for generating"][3] = "J_illustration(606fcb5128e8)"
+    
+    sd_payload["override_settings"]["sd_model_checkpoint"] = "sd_xl_base_1.0.safetensors [31e35c80fc]"
+    sd_payload["alwayson_scripts"]["Additional networks for generating"][3] = "J_cartoon(fe4e7e2e4eff)"
+
+
+    res = call_txt2img_api(**sd_payload)
+    print(res)

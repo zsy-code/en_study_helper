@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 # ---------------------------------------------------
-# A web app demo for word2story
+# A web app demo for hb sd text2image demo
 # ---------------------------------------------------
 # Shiyuan Zhao
 
@@ -13,7 +13,6 @@ from utils import zip_files, timestamp, merge_images
 
 # use a global variable to store the zip file(all generated images)
 download_zip = None
-gl_file_list = []
 
 def words_to_story(words, grade, interest, word_count):
     """ call crewai's agent to generate story
@@ -73,8 +72,6 @@ def extract_shots_from_text(text):
     
     if re.search('##[Ss]hot \d##', text):
         text = text[re.search('##[Ss]hot \d##', text).start():]
-    if re.search('##[Rr]ole', text):
-        text = text[:re.search('##[Rr]ole', text).start()]
     shots_list = re.split('##[Ss]hot \d##', text)
     shots_list = [p.strip() for p in shots_list if p.strip() != '']
     if len(shots_list) in [4, 5]:
@@ -106,13 +103,12 @@ def prompts_to_image(prompt, shots):
     shots_list  = extract_shots_from_text(shots)
     print('spliting process prompt: ', prompt_list)
     assert prompt_list is not None, 'ERROR!'
+    image, file_list = generate_images(prompt_list, shots_list)
+
     global download_zip
-    global gl_file_list
-    image, gl_file_list = generate_images(prompt_list, shots_list)
     download_zip = os.path.join('images_out', 'zip_out', timestamp() + '.zip')
-    gl_file_list.append(image)
-    zip_files(gl_file_list, download_zip)
-    gl_file_list.insert(0, download_zip)
+    file_list.append(image)
+    zip_files(file_list, download_zip)
     return image
 
 
@@ -180,7 +176,6 @@ def words_to_sentences(words, grade, interests):
         data = {'word': word, 'grade': grade, 'interest': str(interests)}
         print('starting process word2sentence: ', data)
         result = requests.post('http://127.0.0.1:9000/word2sentence', json=data)
-        print(result)
         if 'sentences' not in result.json():
             return 'ERROR!'
         print('finished process word2sentence: ', result.json())
@@ -204,111 +199,39 @@ def generate_base_content(words, grade, interest, word_count):
     return story, sentences
 
 
-def show_all_files(input_prompts):
-    global gl_file_list
-    return [gr.update(lines=21, max_lines=21), gr.File(value=gl_file_list, visible=True, height=120, interactive=False)]
-
-
 # build the web app demo
 with gr.Blocks() as demo:
     # title
-    title_html = "<div style='text-align:center;font-size:20pt;font-weight:bold'>Word2Story Demo</div>"
+    title_html = "<div style='text-align:center;font-size:20pt;font-weight:bold'>Stable Diffusion Text2Image Demo</div>"
     gr.Markdown(title_html)
-    # description
-    gr.Markdown("Start typing words and click the **save** button after each step to execute the next step.")
+    # # description
+    # gr.Markdown("Start typing words and click the **save** button after each step to execute the next step.")
     
     # input: textbox(a word) radio_btn(grade) check_box(interests)
     # output: textbox(a story)
     with gr.Row():
-        with gr.Column():
-            input_word = gr.Textbox(lines=1.6, label="input some words(separated by ';')")
-            radio_grade_choices = ["小学", "初中", "高中"]
-            radio_grade = gr.Radio(radio_grade_choices, label="Select a grade", value="小学")
-            check_choices = ["自然", "科技", "体育", "生活", "教育", "社会"]
-            checkbox_interests = gr.CheckboxGroup(check_choices, label="Select some interests", value=["自然"])
-            input_word_count = gr.Number(label="input word count", value=300)
-            btn_run_base_content = gr.Button("Run")
+        input_prompt = gr.Textbox(lines=5, label="input prompt")
+        input_negative_prompt = gr.Textbox(lines=5, label="input negative prompt")
+        # with gr.Column():
+        #     btn_run_base_content = gr.Button("Generate")
 
-        with gr.Column():
-            output_story = gr.Textbox(lines=17, label="output story", max_lines=16)
-            with gr.Row():
-                btn_regenerate_story = gr.Button("Regenerate Story")
-                btn_save_word2story = gr.Button("Save")
-
-        with gr.Column():
-            output_sentences = gr.Textbox(lines=17, label="output sentences", max_lines=16)
-            btn_regenerate_sentences = gr.Button("Regenerate Sentences")
-    # with gr.Row():
-    #     btn_run_word2story = gr.Button("Run")
-    #     btn_save_word2story = gr.Button("Save")
-    
-    gr.Markdown("---")
-    gr.Markdown("## Auto Question Area")
     with gr.Row():
         with gr.Column():
-            input_story_quest = gr.Textbox(lines=10, label="input a story", max_lines=10)
-            radio_difficulty_choices = ['junior', 'senior']
-            radio_difficulty = gr.Radio(radio_difficulty_choices, label="Select a difficulty for blank quesitons", value='junior')
-            input_qtype = gr.Textbox(label="input question types(separated by ';')")
+            input_width = gr.Slider(minimum=128, maximum=2048, step=1, value="768", label="图像宽度", interactive=True)
+            input_height = gr.Slider(minimum=128, maximum=2048, step=1, value="512", label="图像高度", interactive=True)
 
-        output_blank_questions = gr.Textbox(lines=18, label="output blank questions", max_lines=18)
-        output_reading_questions = gr.Textbox(lines=18, label="output reading questions", max_lines=18)
-    
-    with gr.Row():
-        btn_run_all_question = gr.Button("Run")
-        btn_regenerate_blank_question = gr.Button("Regenerate BQ")
-        btn_regenerate_reading_question = gr.Button("Regenerate RQ")
-
-    gr.Markdown("---")
-    gr.Markdown("## Auto Image Area")
-    # input: textbox(a story)
-    # output: textbox(shots)
-    with gr.Row():
-        input_story_shots = gr.Textbox(lines=12, label="input a story", max_lines=12)
-        output_shots = gr.Textbox(lines=12, label="output shots", max_lines=12)
-    with gr.Row():
-        btn_run_story2shots = gr.Button("Run")
-        btn_save_story2shots = gr.Button("Save")
-
-    # intput: textbox(shots)
-    # output: textbox(prompts)
-    with gr.Row():
-        input_shots = gr.Textbox(lines=12, label="input shots", max_lines=12)
-        output_prompts = gr.Textbox(lines=12, label="output prompts", max_lines=12)
-    with gr.Row():
-        btn_run_shots2prompts = gr.Button("Run")
-        btn_save_shots2prompts = gr.Button("Save")
-
-    # input: textbox(prompts)
-    # output: image(generated image)
-    with gr.Row():
-        input_prompts = gr.Textbox(lines=12, label="input prompts", max_lines=12)
         with gr.Column():
-            output_image = gr.Image(label="output image", type='filepath', interactive=False, height=324)
-            output_files = gr.File(label="output files", interactive=False, visible=False, height=120)
-    with gr.Row():
-        btn_run_prompts2image = gr.Button("Run")
-        btn_save_prompts2image = gr.DownloadButton("Save")
-    
-    # some click function(run & save button)
-    # base generate area
-    btn_run_base_content.click(fn=generate_base_content, inputs=[input_word, radio_grade, checkbox_interests, input_word_count], outputs=[output_story, output_sentences])
-    btn_save_word2story.click(fn=extract_english_story_from_text, inputs=output_story, outputs=[input_story_quest, input_story_shots])
-    btn_regenerate_story.click(fn=words_to_story, inputs=[input_word, radio_grade, checkbox_interests, input_word_count], outputs=output_story)
-    btn_regenerate_sentences.click(fn=words_to_sentences, inputs=[input_word, radio_grade, checkbox_interests], outputs=output_sentences)
+            input_iter = gr.Slider(minimum=1, maximum=20, step=1, value="2", label="总批次数", interactive=True)
+            input_batch = gr.Slider(minimum=1, maximum=20, step=1, value="2", label="单批数量", interactive=True)
 
-    # question area
-    btn_run_all_question.click(fn=story_to_all_questions, inputs=[input_word, input_story_quest, radio_difficulty, input_qtype], outputs=[output_blank_questions, output_reading_questions])
-    btn_regenerate_blank_question.click(fn=story_to_blank_questions, inputs=[input_word, input_story_quest, radio_difficulty], outputs=output_blank_questions)
-    btn_regenerate_reading_question.click(fn=story_to_reading_questions, inputs=[input_story_quest, input_qtype], outputs=output_reading_questions)
-    
-    # image area
-    btn_run_story2shots.click(fn=story_to_shots, inputs=input_story_shots, outputs=output_shots)
-    btn_save_story2shots.click(fn=lambda x: x, inputs=output_shots, outputs=input_shots)
-    btn_run_shots2prompts.click(fn=shots_to_prompts, inputs=input_shots, outputs=output_prompts)
-    btn_save_shots2prompts.click(fn=lambda x: x, inputs=output_prompts, outputs=input_prompts)
-    btn_run_prompts2image.click(fn=prompts_to_image, inputs=[input_prompts, input_shots], outputs=output_image)
-    btn_save_prompts2image.click(fn=show_all_files, inputs=input_prompts, outputs=[input_prompts, output_files])
+
+    with gr.Row():
+        # 定义模板数据
+        templates = {
+            "Template 1": "path/to/example1.jpg",
+            "Template 2": "path/to/example2.jpg",
+            "Template 3": "path/to/example3.jpg"
+        }
 
 # launch the web app demo
-demo.launch(server_port=6006)
+demo.launch()
